@@ -179,6 +179,11 @@ class OpenAIBackend(FormatterBackend, AdapterMixin):
         self._added_adapters: dict[str, OpenAIAdapter] = {}
         self._loaded_adapters: dict[str, OpenAIAdapter] = {}
 
+        # Initialize adapter resolution table for discovering adapters
+        from mellea.backends.adapters.resolution import AdapterResolutionTable
+
+        self._resolution_table = AdapterResolutionTable(self._hf_model_id)
+
     @property
     def _async_client(self) -> openai.AsyncOpenAI:
         """OpenAI's client usually handles changing event loops but explicitly handle it here for edge cases."""
@@ -333,9 +338,19 @@ class OpenAIBackend(FormatterBackend, AdapterMixin):
                 alora_action = ALoraRequirement(action.description, adapter_name)
 
             # Check if a requirement_check (or AloraRequirement specified) adapter exists.
-            alora_req_adapter = get_adapter_for_intrinsic(
-                adapter_name, [AdapterType.ALORA], self._added_adapters
-            )
+            # Use resolution table to check availability
+            try:
+                impl = self._resolution_table.resolve(adapter_name)
+                # Ensure it's an ALORA adapter
+                if impl.technology != AdapterType.ALORA:
+                    alora_req_adapter = None
+                else:
+                    # Check if already loaded
+                    qualified_name = f"{adapter_name}_{AdapterType.ALORA.value}"
+                    alora_req_adapter = self._added_adapters.get(qualified_name)
+            except ValueError:
+                alora_req_adapter = None
+
             if alora_req_adapter is None:
                 # Log a warning if using an AloraRequirement but no adapter fit.
                 if reroute_to_alora and isinstance(action, ALoraRequirement):
@@ -407,13 +422,31 @@ class OpenAIBackend(FormatterBackend, AdapterMixin):
             )
             del model_opts[ModelOption.STREAM]
 
-        adapter = get_adapter_for_intrinsic(
-            action.intrinsic_name, action.adapter_types, self._added_adapters
-        )
-        if adapter is None:
+        # Use resolution table to find best adapter implementation
+        try:
+            impl = self._resolution_table.resolve(action.intrinsic_name)
+        except ValueError:
             raise ValueError(
                 f"backend ({self}) has no adapter for processing intrinsic: {action.intrinsic_name}"
             )
+
+        # Check if adapter is already added/loaded
+        qualified_name = f"{impl.intrinsic_name}_{impl.technology.value}"
+        adapter = self._added_adapters.get(qualified_name)
+
+        if adapter is None:
+            # Need to load the adapter
+            if impl.implementation_type == "embedded":
+                # Embedded adapters use chat template - no external loading needed
+                # TODO: Handle embedded adapters via chat template
+                raise NotImplementedError(
+                    f"Embedded adapter support via chat template not yet implemented for '{impl.intrinsic_name}'"
+                )
+            else:
+                # External adapter - load it
+                adapter = self._load_external_adapter(
+                    impl.intrinsic_name, impl.technology
+                )
 
         # TODO: Code below this point is mostly specific to RagIntrinsics (and granite_common).
         #       It should be refactored into a specific adapter.transform() function.
@@ -923,6 +956,51 @@ class OpenAIBackend(FormatterBackend, AdapterMixin):
             raise Exception(f"error loading adapter {adapter_qualified_name}: {err}")
 
         self._loaded_adapters[adapter.qualified_name] = adapter
+
+    def _load_external_adapter(
+        self, intrinsic_name: str, technology: AdapterType
+    ) -> GraniteCommonAdapter:
+        """Load an external adapter from the resolution table.
+
+        Creates a GraniteCommonAdapter for an external adapter discovered
+        by the resolution table, adds it to the backend, and loads it.
+
+        Args:
+            intrinsic_name: Name of the intrinsic
+            technology: Adapter type (LORA or ALORA)
+
+        Returns:
+            The loaded GraniteCommonAdapter
+
+        Raises:
+            ValueError: If adapter fails to load
+        """
+        from mellea.backends.adapters.resolution import AdapterResolutionTable
+
+        # Get the implementation from resolution table
+        impl = self._resolution_table._implementations.get(
+            (intrinsic_name, technology)
+        )
+        if impl is None:
+            raise ValueError(
+                f"No {technology.value} adapter found for '{intrinsic_name}'"
+            )
+
+        # Create adapter using granite-common
+        adapter = GraniteCommonAdapter(
+            intrinsic_name=intrinsic_name,
+            adapter_type=technology,
+            base_model_name=self.base_model_name,
+        )
+
+        # Add and load the adapter
+        self.add_adapter(adapter)
+        self.load_adapter(adapter.qualified_name)
+
+        # Mark as loaded in resolution table
+        self._resolution_table.mark_loaded(intrinsic_name, technology)
+
+        return adapter
 
     def unload_adapter(self, adapter_qualified_name: str):
         """Unloads the given adapter from the backend."""
