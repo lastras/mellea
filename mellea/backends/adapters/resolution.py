@@ -100,11 +100,16 @@ class AdapterResolutionTable:
         Reads adapter_index.json from model directory and creates
         AdapterImplementation entries for each embedded adapter.
         """
-        from granite_common.intrinsics.embedded import (
-            get_embedded_io_yaml,
-            load_adapter_index,
-        )
-        from granite_common.intrinsics.util import make_config_dict
+        try:
+            from granite_common.intrinsics.embedded import (
+                get_embedded_io_yaml,
+                load_adapter_index,
+            )
+            from granite_common.intrinsics.util import make_config_dict
+        except ImportError:
+            # granite-common doesn't have embedded adapter support yet
+            # This is expected - embedded support is a future enhancement
+            return
 
         adapter_index = load_adapter_index(self.model_id)
         if not adapter_index:

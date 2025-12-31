@@ -105,9 +105,9 @@ class HuggingFaceAdapterRepo(AdapterRepo):
         from granite_common.intrinsics import validate_lora_exists
 
         exists = validate_lora_exists(
-            intrinsic_name=intrinsic_name,
-            target_model_name=model_id,
-            repo_id=self.repo_id,
+            intrinsic_name,
+            model_id,
+            self.repo_id,
             alora=(technology == AdapterType.ALORA),
         )
 
