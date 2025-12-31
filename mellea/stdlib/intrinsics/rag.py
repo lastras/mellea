@@ -4,11 +4,7 @@ import collections.abc
 import json
 
 import mellea.stdlib.functional as mfuncs
-from mellea.backends.adapters.adapter import (
-    AdapterMixin,
-    AdapterType,
-    GraniteCommonAdapter,
-)
+from mellea.backends.adapters.adapter import AdapterMixin
 from mellea.backends.types import ModelOption
 from mellea.stdlib.base import ChatContext, Document
 from mellea.stdlib.chat import Message
@@ -42,21 +38,13 @@ def _call_intrinsic(
 ):
     """Shared code for invoking intrinsics.
 
+    Uses the backend's adapter resolution system to automatically discover
+    and load the best available adapter (embedded or external, ALORA or LORA).
+
     :returns: Result of the call in JSON format.
     """
-    # Adapter needs to be present in the backend before it can be invoked.
-    # We must create the Adapter object in order to determine whether we need to create
-    # the Adapter object.
-    base_model_name = backend.base_model_name
-    if base_model_name is None:
-        raise ValueError("Backend has no model ID")
-    adapter = GraniteCommonAdapter(
-        intrinsic_name, adapter_type=AdapterType.LORA, base_model_name=base_model_name
-    )
-    if adapter.qualified_name not in backend.list_adapters():
-        backend.add_adapter(adapter)
-
     # Create the AST node for the action we wish to perform.
+    # The backend's resolution system will handle finding and loading the adapter
     intrinsic = Intrinsic(intrinsic_name, intrinsic_kwargs=kwargs)
 
     # Execute the AST node.
