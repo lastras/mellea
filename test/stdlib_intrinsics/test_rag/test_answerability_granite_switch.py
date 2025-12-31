@@ -135,7 +135,8 @@ def test_backend_initialization_with_embedded_adapters():
 
 
 @skip_if_no_model
-def test_answerability_intrinsic_with_embedded_adapter():
+@pytest.mark.asyncio
+async def test_answerability_intrinsic_with_embedded_adapter():
     """
     Test answerability intrinsic using embedded adapter (requires vLLM server).
 
@@ -152,10 +153,16 @@ def test_answerability_intrinsic_with_embedded_adapter():
     3. Successful intrinsic invocation
     4. No external downloads
     """
-    pytest.skip(
-        "Requires vLLM server - run manually or set ENABLE_VLLM_TESTS=1. "
-        "This test documents expected behavior for embedded adapter invocation."
-    )
+    # Check if vLLM server is available
+    import httpx
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://localhost:8000/health", timeout=2.0)
+            if response.status_code != 200:
+                pytest.skip("vLLM server not available at http://localhost:8000")
+    except (httpx.ConnectError, httpx.TimeoutException):
+        pytest.skip("vLLM server not available at http://localhost:8000")
 
     from mellea.backends.openai import OpenAIBackend
     from mellea.stdlib.base import ChatContext, Document
@@ -186,30 +193,22 @@ def test_answerability_intrinsic_with_embedded_adapter():
 
     # Call intrinsic - should automatically use embedded adapter
     # NO manual adapter setup needed!
-    try:
-        score = rag.check_answerability(question, documents, context, backend)
+    score = await rag.check_answerability(question, documents, context, backend)
 
-        print(f"\n✓ Answerability score: {score}")
-        assert 0.0 <= score <= 1.0, "Score should be between 0 and 1"
-        assert score > 0.5, (
-            "Question should be answerable from documents (Paris is mentioned)"
-        )
+    print(f"\n✓ Answerability score: {score}")
+    assert 0.0 <= score <= 1.0, "Score should be between 0 and 1"
+    assert score > 0.5, (
+        "Question should be answerable from documents (Paris is mentioned)"
+    )
 
-        # Verify no external adapter was loaded (should use embedded)
-        loaded_adapters = list(backend._loaded_adapters.keys())
-        print(f"\nLoaded adapters: {loaded_adapters}")
+    # Verify no external adapter was loaded (should use embedded)
+    loaded_adapters = list(backend._loaded_adapters.keys())
+    print(f"\nLoaded adapters: {loaded_adapters}")
+    assert len(loaded_adapters) == 0, (
+        "Embedded adapters should not require external loading"
+    )
 
-        # NOTE: Currently raises NotImplementedError because embedded adapter
-        # support via chat template is not yet implemented in the backend.
-        # This test documents the expected behavior once that's implemented.
-
-    except NotImplementedError as e:
-        if "Embedded adapter support" in str(e):
-            pytest.skip(
-                "Embedded adapter invocation via chat template not yet implemented. "
-                "This test documents expected behavior for future implementation."
-            )
-        raise
+    print("\n✓ Successfully used embedded adapter via chat template!")
 
 
 @skip_if_no_model

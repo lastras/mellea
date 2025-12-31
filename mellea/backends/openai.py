@@ -438,28 +438,46 @@ class OpenAIBackend(FormatterBackend, AdapterMixin):
             # Need to load the adapter
             if impl.implementation_type == "embedded":
                 # Embedded adapters use chat template - no external loading needed
-                # TODO: Handle embedded adapters via chat template
-                raise NotImplementedError(
-                    f"Embedded adapter support via chat template not yet implemented for '{impl.intrinsic_name}'"
-                )
+                # We'll use the chat template with intrinsic_name parameter to insert control tokens
+                pass
             else:
                 # External adapter - load it
                 adapter = self._load_external_adapter(
                     impl.intrinsic_name, impl.technology
                 )
 
-        # TODO: Code below this point is mostly specific to RagIntrinsics (and granite_common).
-        #       It should be refactored into a specific adapter.transform() function.
-        assert isinstance(adapter, GraniteCommonAdapter), (
-            "currently Mellea only supports GraniteCommonAdapters and Intrinsics"
-        )
-        assert adapter.config is not None
-        rewriter = granite_common.IntrinsicsRewriter(
-            config_dict=adapter.config, model_name=adapter.qualified_name
-        )
-        result_processor = granite_common.IntrinsicsResultProcessor(
-            config_dict=adapter.config
-        )
+        # Handle embedded vs external adapters differently
+        if impl.implementation_type == "embedded":
+            # Embedded adapters: Use tokenizer's chat template with intrinsic_name
+            # This automatically inserts the appropriate control tokens
+
+            # Load the adapter config from the implementation
+            assert impl.config is not None, (
+                f"Embedded adapter '{impl.intrinsic_name}' missing config"
+            )
+
+            # Create rewriter and result processor using the embedded adapter's config
+            # Use the intrinsic name as the model name for embedded adapters
+            rewriter = granite_common.IntrinsicsRewriter(
+                config_dict=impl.config, model_name=impl.intrinsic_name
+            )
+            result_processor = granite_common.IntrinsicsResultProcessor(
+                config_dict=impl.config
+            )
+        else:
+            # External adapters: Use loaded GraniteCommonAdapter
+            # TODO: Code below this point is mostly specific to RagIntrinsics (and granite_common).
+            #       It should be refactored into a specific adapter.transform() function.
+            assert isinstance(adapter, GraniteCommonAdapter), (
+                "currently Mellea only supports GraniteCommonAdapters and Intrinsics"
+            )
+            assert adapter.config is not None
+            rewriter = granite_common.IntrinsicsRewriter(
+                config_dict=adapter.config, model_name=adapter.qualified_name
+            )
+            result_processor = granite_common.IntrinsicsResultProcessor(
+                config_dict=adapter.config
+            )
 
         # Convert our conversation into a proper chat completions dict.
         # [{role: user, content: Hello}, {...}] -> {messages: [{role:user,...}, ...], model:..., ...}
@@ -476,9 +494,22 @@ class OpenAIBackend(FormatterBackend, AdapterMixin):
 
         rewritten = rewriter.transform(request_json, **action.intrinsic_kwargs)
 
-        self.load_adapter(adapter.qualified_name)
+        # Prepare chat completion kwargs
+        chat_kwargs = rewritten.model_dump()
+
+        # Handle embedded vs external adapters
+        if impl.implementation_type == "embedded":
+            # Embedded adapters: Pass intrinsic_name to chat template via extra_body
+            # The tokenizer will use this to insert the appropriate control tokens
+            if "extra_body" not in chat_kwargs:
+                chat_kwargs["extra_body"] = {}
+            chat_kwargs["extra_body"]["intrinsic_name"] = impl.intrinsic_name
+        else:
+            # External adapters: Load the adapter into vLLM
+            self.load_adapter(adapter.qualified_name)
+
         chat_response: Coroutine[Any, Any, ChatCompletion] = (
-            self._async_client.chat.completions.create(**rewritten.model_dump())
+            self._async_client.chat.completions.create(**chat_kwargs)
         )
 
         output = ModelOutputThunk(None)
