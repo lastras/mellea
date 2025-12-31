@@ -504,6 +504,10 @@ class OpenAIBackend(FormatterBackend, AdapterMixin):
             if "extra_body" not in chat_kwargs:
                 chat_kwargs["extra_body"] = {}
             chat_kwargs["extra_body"]["intrinsic_name"] = impl.intrinsic_name
+
+            # IMPORTANT: Override the model field - rewriter sets it to intrinsic_name,
+            # but we need the actual model ID for the API call
+            chat_kwargs["model"] = self._hf_model_id
         else:
             # External adapters: Load the adapter into vLLM
             self.load_adapter(adapter.qualified_name)

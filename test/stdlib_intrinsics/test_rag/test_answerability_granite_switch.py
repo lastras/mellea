@@ -169,11 +169,16 @@ async def test_answerability_intrinsic_with_embedded_adapter():
     from mellea.stdlib.intrinsics import rag
 
     # Create backend - automatic adapter discovery
+    # Note: Use the local model path for discovery, but vLLM expects the relative path
     backend = OpenAIBackend(
         model_id=GRANITE_SWITCH_MODEL,
         base_url="http://localhost:8000/v1",
         api_key="EMPTY",
     )
+
+    # Override the HF model ID to match what vLLM expects
+    # vLLM was started with "./granite-with-all-aloras"
+    backend._hf_model_id = "./granite-with-all-aloras/"
 
     # Verify embedded adapter was discovered
     impl = backend._resolution_table.resolve("answerability")
@@ -193,7 +198,7 @@ async def test_answerability_intrinsic_with_embedded_adapter():
 
     # Call intrinsic - should automatically use embedded adapter
     # NO manual adapter setup needed!
-    score = await rag.check_answerability(question, documents, context, backend)
+    score = rag.check_answerability(question, documents, context, backend)
 
     print(f"\n✓ Answerability score: {score}")
     assert 0.0 <= score <= 1.0, "Score should be between 0 and 1"
