@@ -500,10 +500,12 @@ class OpenAIBackend(FormatterBackend, AdapterMixin):
         # Handle embedded vs external adapters
         if impl.implementation_type == "embedded":
             # Embedded adapters: Pass intrinsic_name to chat template via extra_body
-            # The tokenizer will use this to insert the appropriate control tokens
+            # vLLM will extract chat_template_kwargs and pass to apply_chat_template()
             if "extra_body" not in chat_kwargs:
                 chat_kwargs["extra_body"] = {}
-            chat_kwargs["extra_body"]["intrinsic_name"] = impl.intrinsic_name
+            chat_kwargs["extra_body"]["chat_template_kwargs"] = {
+                "intrinsic_name": impl.intrinsic_name
+            }
 
             # IMPORTANT: Override the model field - rewriter sets it to intrinsic_name,
             # but we need the actual model ID for the API call
