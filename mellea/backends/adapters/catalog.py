@@ -15,6 +15,52 @@ class AdapterType(enum.Enum):
     LORA = "lora"
     ALORA = "alora"
 
+    @classmethod
+    def all_types(cls) -> list["AdapterType"]:
+        """Get all available adapter types in definition order.
+
+        Returns:
+            List of all AdapterType enum values
+
+        Example:
+            >>> AdapterType.all_types()
+            [<AdapterType.LORA: 'lora'>, <AdapterType.ALORA: 'alora'>]
+        """
+        return list(cls)
+
+    @classmethod
+    def from_string(cls, value: str) -> "AdapterType":
+        """Convert string to AdapterType enum value.
+
+        Args:
+            value: String representation (e.g., "lora", "alora")
+
+        Returns:
+            Corresponding AdapterType enum value
+
+        Raises:
+            ValueError: If value doesn't match any adapter type
+
+        Example:
+            >>> AdapterType.from_string("alora")
+            <AdapterType.ALORA: 'alora'>
+        """
+        for adapter_type in cls:
+            if adapter_type.value == value.lower():
+                return adapter_type
+        valid_types = [t.value for t in cls.all_types()]
+        raise ValueError(
+            f"Unknown adapter type '{value}'. Valid types are {valid_types}"
+        )
+
+
+class AdapterStatus(enum.Enum):
+    """Lifecycle state of an adapter."""
+
+    NOT_LOADED = "not_loaded"  # Discovered but not yet loaded
+    LOADED = "loaded"  # Ready to use
+    FAILED = "failed"  # Load attempt failed
+
 
 class IntriniscsCatalogEntry(pydantic.BaseModel):
     """A single row in the main intrinsics catalog table.
