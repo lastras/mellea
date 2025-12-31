@@ -185,35 +185,71 @@ async def test_answerability_intrinsic_with_embedded_adapter():
     assert impl.implementation_type == "embedded"
     print(f"\n✓ Using embedded adapter: {impl.intrinsic_name} ({impl.technology.value})")
 
-    # Create test data
-    question = "What is the capital of France?"
-    documents = [
+    # Test 1: Answerable question
+    print("\n" + "=" * 60)
+    print("TEST 1: Answerable Question")
+    print("=" * 60)
+
+    question_answerable = "What is the capital of France?"
+    documents_answerable = [
         Document(text="Paris is the capital and largest city of France."),
         Document(text="Berlin is the capital of Germany."),
     ]
-    context = ChatContext()
+    context_answerable = ChatContext()
 
-    print(f"\nQuestion: {question}")
-    print(f"Documents: {len(documents)}")
+    print(f"\nQuestion: {question_answerable}")
+    print(f"Documents: {len(documents_answerable)}")
+    print(f"  - {documents_answerable[0].text}")
+    print(f"  - {documents_answerable[1].text}")
 
-    # Call intrinsic - should automatically use embedded adapter
-    # NO manual adapter setup needed!
-    score = rag.check_answerability(question, documents, context, backend)
+    score_answerable = rag.check_answerability(
+        question_answerable, documents_answerable, context_answerable, backend
+    )
 
-    print(f"\n✓ Answerability score: {score}")
-    assert 0.0 <= score <= 1.0, "Score should be between 0 and 1"
-    assert score > 0.5, (
+    print(f"\n✓ Answerability score: {score_answerable}")
+    assert 0.0 <= score_answerable <= 1.0, "Score should be between 0 and 1"
+    assert score_answerable > 0.5, (
         "Question should be answerable from documents (Paris is mentioned)"
+    )
+
+    # Test 2: Unanswerable question
+    print("\n" + "=" * 60)
+    print("TEST 2: Unanswerable Question")
+    print("=" * 60)
+
+    question_unanswerable = "What is the population of Tokyo?"
+    documents_unanswerable = [
+        Document(text="Paris is the capital and largest city of France."),
+        Document(text="Berlin is the capital of Germany."),
+    ]
+    context_unanswerable = ChatContext()
+
+    print(f"\nQuestion: {question_unanswerable}")
+    print(f"Documents: {len(documents_unanswerable)}")
+    print(f"  - {documents_unanswerable[0].text}")
+    print(f"  - {documents_unanswerable[1].text}")
+
+    score_unanswerable = rag.check_answerability(
+        question_unanswerable, documents_unanswerable, context_unanswerable, backend
+    )
+
+    print(f"\n✓ Answerability score: {score_unanswerable}")
+    assert 0.0 <= score_unanswerable <= 1.0, "Score should be between 0 and 1"
+    assert score_unanswerable < 0.5, (
+        "Question should NOT be answerable from documents (Tokyo not mentioned)"
     )
 
     # Verify no external adapter was loaded (should use embedded)
     loaded_adapters = list(backend._loaded_adapters.keys())
-    print(f"\nLoaded adapters: {loaded_adapters}")
+    print(f"\n" + "=" * 60)
+    print(f"Loaded adapters: {loaded_adapters}")
     assert len(loaded_adapters) == 0, (
         "Embedded adapters should not require external loading"
     )
 
     print("\n✓ Successfully used embedded adapter via chat template!")
+    print(f"✓ Correctly classified answerable question (score: {score_answerable:.2f})")
+    print(f"✓ Correctly classified unanswerable question (score: {score_unanswerable:.2f})")
 
 
 @skip_if_no_model
