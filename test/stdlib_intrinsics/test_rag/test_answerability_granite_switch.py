@@ -135,15 +135,14 @@ def test_backend_initialization_with_embedded_adapters():
 
 
 @skip_if_no_model
-@pytest.mark.asyncio
-async def test_answerability_intrinsic_with_embedded_adapter():
+def test_answerability_intrinsic_with_embedded_adapter():
     """
     Test answerability intrinsic using embedded adapter (requires vLLM server).
 
     This test requires a running vLLM server with the Granite Switch model:
 
     python -m vllm.entrypoints.openai.api_server \\
-        --model ./granite-with-all-aloras \\
+        --model /home/lastrasl/granite-switch/granite-with-all-aloras \\
         --port 8000 \\
         --dtype auto
 
@@ -154,8 +153,8 @@ async def test_answerability_intrinsic_with_embedded_adapter():
     4. No external downloads
     """
     pytest.skip(
-        "Requires vLLM server - run manually with: "
-        "pytest test_answerability_granite_switch.py::test_answerability_intrinsic_with_embedded_adapter -v -s"
+        "Requires vLLM server - run manually or set ENABLE_VLLM_TESTS=1. "
+        "This test documents expected behavior for embedded adapter invocation."
     )
 
     from mellea.backends.openai import OpenAIBackend
