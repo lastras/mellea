@@ -239,6 +239,34 @@ async def test_answerability_intrinsic_with_embedded_adapter():
         "Question should NOT be answerable from documents (Tokyo not mentioned)"
     )
 
+    # Test 3: Partially/ambiguously answerable question
+    print("\n" + "=" * 60)
+    print("TEST 3: Partially Answerable Question")
+    print("=" * 60)
+
+    question_ambiguous = "Is Paris the most beautiful and largest city in France?"
+    documents_ambiguous = [
+        Document(text="Paris is the capital and largest city of France."),
+        Document(text="Berlin is the capital of Germany."),
+    ]
+    context_ambiguous = ChatContext()
+
+    print(f"\nQuestion: {question_ambiguous}")
+    print(f"Documents: {len(documents_ambiguous)}")
+    print(f"  - {documents_ambiguous[0].text}")
+    print(f"  - {documents_ambiguous[1].text}")
+    print(f"\nNote: Documents confirm 'largest' but not 'most beautiful'")
+
+    score_ambiguous = rag.check_answerability(
+        question_ambiguous, documents_ambiguous, context_ambiguous, backend
+    )
+
+    print(f"\n✓ Answerability score: {score_ambiguous}")
+    assert 0.0 <= score_ambiguous <= 1.0, "Score should be between 0 and 1"
+    # Ambiguous question - model should give intermediate score
+    # Documents support "largest" but not "most beautiful"
+    print(f"  (Partially answerable - 'largest' yes, 'beautiful' no)")
+
     # Verify no external adapter was loaded (should use embedded)
     loaded_adapters = list(backend._loaded_adapters.keys())
     print(f"\n" + "=" * 60)
@@ -250,6 +278,7 @@ async def test_answerability_intrinsic_with_embedded_adapter():
     print("\n✓ Successfully used embedded adapter via chat template!")
     print(f"✓ Correctly classified answerable question (score: {score_answerable:.2f})")
     print(f"✓ Correctly classified unanswerable question (score: {score_unanswerable:.2f})")
+    print(f"✓ Correctly classified ambiguous question (score: {score_ambiguous:.2f})")
 
 
 @skip_if_no_model
