@@ -181,4 +181,102 @@ All test cases now use realistic data:
 
 ---
 
-**Ready for maintainer review and feedback!**
+## Implementation Status ✅
+
+### **COMPLETED - December 2025**
+
+All 7 phases of the implementation plan have been successfully completed:
+
+#### Phase 1: granite-common ✅
+- ✅ Added `validate_lora_exists()` function
+- ✅ Committed to branch `feature/adapter-validation`
+- ✅ Exported from `__init__.py`
+
+#### Phase 2: mellea - AdapterType helpers ✅
+- ✅ Added `AdapterType.all_types()` class method
+- ✅ Added `AdapterType.from_string()` class method
+- ✅ Added `AdapterStatus` enum (NOT_LOADED, LOADED, FAILED)
+- ✅ Committed to branch `feature/adapter-resolution-system`
+
+#### Phase 3: mellea - AdapterRepoRegistry ✅
+- ✅ Implemented `AdapterSource` dataclass
+- ✅ Implemented `AdapterRepo` abstract base
+- ✅ Implemented `HuggingFaceAdapterRepo`
+- ✅ Implemented `AdapterRepoRegistry` with insertion-order priority
+- ✅ Added `get_default_registry()` singleton
+
+#### Phase 4: mellea - AdapterResolutionTable ✅
+- ✅ Implemented `AdapterImplementation` Pydantic model
+- ✅ Implemented `AdapterResolutionTable` class
+- ✅ Added embedded adapter discovery (via `adapter_index.json`)
+- ✅ Added external adapter discovery (via registry)
+- ✅ Implemented resolution preferences (embedded > external, ALORA > LORA)
+- ✅ Added state tracking methods (`mark_loaded`, `mark_failed`)
+
+#### Phase 5: mellea - OpenAI Backend Integration ✅
+- ✅ Created `AdapterResolutionTable` in `__init__`
+- ✅ Added `_load_external_adapter()` method
+- ✅ Updated `_generate_from_intrinsic()` to use resolution table
+- ✅ Updated requirement checking to use resolution table
+- ✅ Automatic adapter discovery and loading
+
+#### Phase 6: mellea - Intrinsic Functions ✅
+- ✅ Simplified `_call_intrinsic()` to delegate to backend
+- ✅ Removed manual `GraniteCommonAdapter` creation
+- ✅ Removed hardcoded `AdapterType.LORA` preference
+- ✅ Removed manual adapter list checking and `add_adapter()` calls
+
+#### Phase 7: mellea - Tests and Documentation ✅
+- ✅ Created comprehensive test suite (`test_resolution.py`)
+- ✅ Tests for `AdapterType` utilities
+- ✅ Tests for `AdapterRepoRegistry`
+- ✅ Tests for `AdapterResolutionTable`
+- ✅ Tests for `AdapterImplementation` model
+- ✅ Updated implementation status documentation
+
+### Git Commits Summary
+
+**granite-common** (`feature/adapter-validation` branch):
+1. "Add validate_lora_exists() for adapter discovery"
+
+**mellea** (`feature/adapter-resolution-system` branch):
+1. "Add AdapterType helper methods and AdapterStatus enum"
+2. "Implement AdapterRepoRegistry for multi-source adapter discovery"
+3. "Implement AdapterResolutionTable for adapter discovery and resolution"
+4. "Integrate AdapterResolutionTable with OpenAI backend"
+5. "Simplify intrinsic functions to use adapter resolution system"
+6. "Add comprehensive tests for adapter resolution system"
+
+### What Works Now
+
+Users can now:
+- ✅ Use Granite Switch models with embedded adapters automatically
+- ✅ Call intrinsics without manual adapter setup
+- ✅ Automatically prefer embedded adapters (no downloads)
+- ✅ Automatically prefer ALORA over LORA when both available
+- ✅ Register custom adapter repositories
+- ✅ Use external adapters when embedded not available
+
+### Legacy Code Removed
+
+The following legacy patterns have been eliminated:
+- ❌ Manual `GraniteCommonAdapter` creation in intrinsic functions
+- ❌ Hardcoded adapter type preferences
+- ❌ Manual `add_adapter()` calls before intrinsic invocation
+
+The following legacy code is retained but usage patterns changed:
+- ✅ `get_adapter_for_intrinsic()` - still in codebase, but replaced by resolution system in intrinsic functions
+- ✅ `obtain_lora()` - still used for downloading external adapters
+- ✅ `IntrinsicsRewriter` - still used for transformations
+
+### Next Steps
+
+1. **Testing**: Run comprehensive tests with real Granite Switch models
+2. **Maintainer Review**: Present implementation for feedback
+3. **Merge Strategy**: Coordinate merging of both branches
+4. **Documentation**: Update user-facing docs with new patterns
+5. **Deprecation**: Plan deprecation of `get_adapter_for_intrinsic()` if desired
+
+---
+
+**Implementation complete and ready for testing and review!**
