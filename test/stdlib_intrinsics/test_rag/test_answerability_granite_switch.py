@@ -19,12 +19,12 @@ import os
 import pytest
 
 # Skip if model not available
-GRANITE_SWITCH_MODEL = os.environ.get(
-    "GRANITE_SWITCH_MODEL", "/home/lastrasl/granite-switch/granite-with-all-aloras"
-)
+# Set GRANITE_SWITCH_MODEL environment variable to the path of your Granite Switch model
+# Example: export GRANITE_SWITCH_MODEL=/path/to/granite-with-all-aloras
+GRANITE_SWITCH_MODEL = os.environ.get("GRANITE_SWITCH_MODEL")
 skip_if_no_model = pytest.mark.skipif(
-    not os.path.exists(GRANITE_SWITCH_MODEL),
-    reason=f"Granite Switch model not found at {GRANITE_SWITCH_MODEL}",
+    GRANITE_SWITCH_MODEL is None or not os.path.exists(GRANITE_SWITCH_MODEL),
+    reason="GRANITE_SWITCH_MODEL environment variable not set or model not found",
 )
 
 
@@ -143,7 +143,7 @@ async def test_answerability_intrinsic_with_embedded_adapter():
     This test requires a running vLLM server with the Granite Switch model:
 
     python -m vllm.entrypoints.openai.api_server \\
-        --model /home/lastrasl/granite-switch/granite-with-all-aloras \\
+        --model <path-to-granite-switch-model> \\
         --port 8000 \\
         --dtype auto
 
@@ -177,8 +177,9 @@ async def test_answerability_intrinsic_with_embedded_adapter():
     )
 
     # Override the HF model ID to match what vLLM expects
-    # vLLM was started with "./granite-with-all-aloras"
-    backend._hf_model_id = "./granite-with-all-aloras/"
+    # Extract just the model name from the full path for vLLM
+    model_name = os.path.basename(GRANITE_SWITCH_MODEL.rstrip('/'))
+    backend._hf_model_id = f"./{model_name}/"
 
     # Verify embedded adapter was discovered
     impl = backend._resolution_table.resolve("answerability")
