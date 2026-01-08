@@ -195,7 +195,7 @@ class OpenAIBackend(FormatterBackend, AdapterMixin):
         # Initialize adapter resolution table for discovering adapters
         from mellea.backends.adapters.resolution import AdapterResolutionTable
 
-        self._resolution_table = AdapterResolutionTable(self._hf_model_id)
+        self._resolution_table = AdapterResolutionTable(self._model_id)
 
     @property
     def _async_client(self) -> openai.AsyncOpenAI:
@@ -524,7 +524,7 @@ class OpenAIBackend(FormatterBackend, AdapterMixin):
 
             # IMPORTANT: Override the model field - rewriter sets it to intrinsic_name,
             # but we need the actual model ID for the API call
-            chat_kwargs["model"] = self._hf_model_id
+            chat_kwargs["model"] = self._model_id
         else:
             # External adapters: Load the adapter into vLLM
             self.load_adapter(adapter.qualified_name)
